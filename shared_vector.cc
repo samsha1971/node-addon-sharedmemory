@@ -1,5 +1,4 @@
 #include "shared_vector.h"
-#include <iostream>
 
 Napi::FunctionReference SharedVector::constructor;
 Napi::Object SharedVector::Init(Napi::Env env, Napi::Object exports)
@@ -26,21 +25,6 @@ Napi::Object SharedVector::Init(Napi::Env env, Napi::Object exports)
 	exports.Set("Vector", func);
 	return exports;
 }
-
-ShmemString SharedVector::toShare(std::string str)
-{
-	CharAllocator charAlloc(pSegment->get_segment_manager());
-	ShmemString sstr(charAlloc);
-	sstr = str.c_str();
-	return sstr;
-}
-
-std::string SharedVector::fromShare(ShmemString sstr)
-{
-	std::string str = sstr.c_str();
-	return str;
-}
-
 
 Napi::Value SharedVector::getName(const Napi::CallbackInfo &info) {
 	Napi::Env env = info.Env();
@@ -85,8 +69,8 @@ SharedVector::SharedVector(const Napi::CallbackInfo &info)
 		pVector = pSegment->find<ShmemVector>("ShmemVector").first;
 		if (pVector == NULL)
 		{
-			const StringAllocator stringAlloc(pSegment->get_segment_manager());
-			pVector = pSegment->construct<ShmemVector>("ShmemVector")(stringAlloc);
+			const ShmemBufferAllocator shmemBufferAlloc(pSegment->get_segment_manager());
+			pVector = pSegment->construct<ShmemVector>("ShmemVector")(shmemBufferAlloc);
 		}
 
 		pObj = pSegment->find<ShmemObject>("ShmemVector_ShmemObject").first;
@@ -97,7 +81,7 @@ SharedVector::SharedVector(const Napi::CallbackInfo &info)
 	}
 	catch (std::exception& e)
 	{
-		Napi::Error::New(env, e.what() ).ThrowAsJavaScriptException();
+		Napi::Error::New(env, e.what()).ThrowAsJavaScriptException();
 		return;
 	}
 }
@@ -107,6 +91,22 @@ SharedVector::~SharedVector()
 	delete pSegment;
 }
 
+static
+napi_value JsValueFromV8LocalValue(v8::Local<v8::Value> local) {
+	return reinterpret_cast<napi_value>(*local);
+}
+
+static
+v8::Local<v8::Value> V8LocalValueFromJsValue(napi_value v) {
+	v8::Local<v8::Value> local;
+	memcpy(&local, &v, sizeof(v));
+	return local;
+}
+
+typedef struct {
+	const uint8_t* data;
+	size_t size;
+} napi_serialized_data;
 
 void SharedVector::push_back(const Napi::CallbackInfo &info)
 {
@@ -116,19 +116,31 @@ void SharedVector::push_back(const Napi::CallbackInfo &info)
 
 	scoped_lock<interprocess_mutex> lock(pObj->mutex);
 
+	Napi::Value value = info[0];
 	size_t length = info.Length();
 
-	if (length <= 0 || !info[0].IsString())
+	if (length <= 0)
 	{
 		Napi::TypeError::New(env, "Invalid Parameters, String expected").ThrowAsJavaScriptException();
 		return;
 	}
-
-	std::string value = info[0].As<Napi::String>();
-	ShmemString svalue = toShare(value);
-	pVector->push_back(svalue);
-	pSegment->flush();
-
+	Buffer buffer;
+	bool b = SharedUtils::serialize(info[0], buffer);
+	if (b)
+	{
+		CharAllocator charAlloc(pSegment->get_segment_manager());
+		ShmemBuffer result(charAlloc);
+		for (int i = 0; i < buffer.size(); i++)
+		{
+			result.push_back(buffer[i]);
+		}
+		pVector->push_back(result);
+		pSegment->flush();
+	}
+	else
+	{
+		Napi::Error::New(env, "Invalid Parameters").ThrowAsJavaScriptException();
+	}
 }
 
 Napi::Value SharedVector::at(const Napi::CallbackInfo &info)
@@ -145,12 +157,21 @@ Napi::Value SharedVector::at(const Napi::CallbackInfo &info)
 	int32_t pos = info[0].As<Napi::Number>().Int32Value();
 	if (pos >= pVector->size())
 	{
-		Napi::Error::New(env, "Invalid Parameter, Out of range").ThrowAsJavaScriptException();
+		Napi::RangeError::New(env, "Invalid Parameter, Out of range").ThrowAsJavaScriptException();
 		return  r;
 	}
-	ShmemString svalue = pVector->at(pos);
-	r = Napi::String::New(env, svalue.c_str());
-	return r;
+	ShmemBuffer value = pVector->at(pos);
+
+	napi_value result;
+	bool b = SharedUtils::deserialize(value, result);
+	if (b) {
+		return Napi::Value(env, result);
+	}
+	else
+	{
+		Napi::Error::New(env, "Invalid Parameter, Out of range").ThrowAsJavaScriptException();
+		return r;
+	}
 }
 
 void SharedVector::erase(const Napi::CallbackInfo &info)
@@ -193,7 +214,18 @@ Napi::Value SharedVector::getValue(const Napi::CallbackInfo &info) {
 
 	for (int i = 0; i < pVector->size(); i++)
 	{
-		r[i] = pVector->at(i).c_str();
+		napi_value result;
+		bool b = SharedUtils::deserialize(pVector->at(i), result);
+		if (b) {
+			r[i] = result;
+		}
+		else
+		{
+			Napi::Error::New(env, "Invalid Parameter, Out of range").ThrowAsJavaScriptException();
+			return r;
+		}
+		
 	}
 	return r;
 }
+

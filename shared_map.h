@@ -1,25 +1,11 @@
 #pragma once
 
-#include <napi.h>
-#include <boost/any.hpp>
-#include <boost/archive/text_iarchive.hpp>
-#include <boost/archive/text_oarchive.hpp>
-#include <boost/interprocess/managed_mapped_file.hpp>
-#include <boost/interprocess/managed_shared_memory.hpp>
-#include <boost/interprocess/sync/scoped_lock.hpp>
-#include <boost/interprocess/containers/map.hpp>
-#include "boost/interprocess/containers/string.hpp"
-#include <boost/interprocess/allocators/allocator.hpp>
-#include <string>
-#include <cstdlib>
+#include "shared_utils.h"
 
-using namespace boost::interprocess;
-
-typedef allocator<char, managed_shared_memory::segment_manager> CharAllocator;
 typedef basic_string<char, std::char_traits<char>, CharAllocator> ShmemString;
-typedef std::pair<const ShmemString, ShmemString> PairType;
+typedef std::pair<const ShmemString, ShmemBuffer> PairType;
 typedef allocator<PairType, managed_shared_memory::segment_manager> PairAllocator;
-typedef map<ShmemString, ShmemString, std::less<ShmemString>, PairAllocator> ShmemMap;
+typedef map<ShmemString, ShmemBuffer, std::less<ShmemString>, PairAllocator> ShmemMap;
 
 
 class SharedMap : public Napi::ObjectWrap<SharedMap>
@@ -61,8 +47,6 @@ private:
 	Napi::Value getValue(const Napi::CallbackInfo &info);
 	
 	// utils
-	ShmemString toShare(std::string);
-	std::string fromShare(ShmemString);
-
+	
 };
 
