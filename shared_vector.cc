@@ -129,12 +129,9 @@ void SharedVector::push_back(const Napi::CallbackInfo &info)
 	if (b)
 	{
 		CharAllocator charAlloc(pSegment->get_segment_manager());
-		ShmemBuffer result(charAlloc);
-		for (int i = 0; i < buffer.size(); i++)
-		{
-			result.push_back(buffer[i]);
-		}
-		pVector->push_back(result);
+		ShmemBuffer sValue(charAlloc);
+		SharedUtils::copy(buffer, sValue);
+		pVector->push_back(sValue);
 		pSegment->flush();
 	}
 	else
@@ -160,12 +157,12 @@ Napi::Value SharedVector::at(const Napi::CallbackInfo &info)
 		Napi::RangeError::New(env, "Invalid Parameter, Out of range").ThrowAsJavaScriptException();
 		return  r;
 	}
-	ShmemBuffer value = pVector->at(pos);
+	ShmemBuffer sValue = pVector->at(pos);
 
-	napi_value result;
-	bool b = SharedUtils::deserialize(value, result);
+	napi_value value;
+	bool b = SharedUtils::deserialize(sValue, value);
 	if (b) {
-		return Napi::Value(env, result);
+		return Napi::Value(env, value);
 	}
 	else
 	{
@@ -214,17 +211,17 @@ Napi::Value SharedVector::getValue(const Napi::CallbackInfo &info) {
 
 	for (int i = 0; i < pVector->size(); i++)
 	{
-		napi_value result;
-		bool b = SharedUtils::deserialize(pVector->at(i), result);
+		napi_value value;
+		bool b = SharedUtils::deserialize(pVector->at(i), value);
 		if (b) {
-			r[i] = result;
+			r[i] = value;
 		}
 		else
 		{
 			Napi::Error::New(env, "Invalid Parameter, Out of range").ThrowAsJavaScriptException();
 			return r;
 		}
-		
+
 	}
 	return r;
 }

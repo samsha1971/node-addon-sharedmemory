@@ -30,6 +30,8 @@ public:
 	static bool serialize(napi_value value, Buffer & result);
 	static bool deserialize(ShmemBuffer &value, napi_value & result);
 
+	static void copy(Buffer & buffer, ShmemBuffer &value);
+
 private:
 	static napi_value fromV8LocalValue(v8::Local<v8::Value> local);
 	static v8::Local<v8::Value> toV8LocalValue(napi_value v);

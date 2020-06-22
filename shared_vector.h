@@ -25,7 +25,7 @@ private:
 	Napi::Value at(const Napi::CallbackInfo &info);
 	void erase(const Napi::CallbackInfo &info);
 	Napi::Value empty(const Napi::CallbackInfo &info);
-	void clear(const Napi::CallbackInfo &info);	
+	void clear(const Napi::CallbackInfo &info);
 
 private:
 	// variables
@@ -40,7 +40,7 @@ private:
 	void setName(const Napi::CallbackInfo &info, const Napi::Value &value);
 
 	Napi::Value getValue(const Napi::CallbackInfo &info);
-	
+
 	// utils
 };
 

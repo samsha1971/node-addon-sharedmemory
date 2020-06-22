@@ -8,8 +8,8 @@ typedef struct {
 } serialized_value;
 
 
-SharedUtils::SharedUtils(){
-	
+SharedUtils::SharedUtils() {
+
 }
 
 SharedUtils::~SharedUtils()
@@ -19,13 +19,12 @@ SharedUtils::~SharedUtils()
 
 bool SharedUtils::serialize(napi_value value, Buffer & result)
 {
-	
+
 	v8::Isolate* isolate = v8::Isolate::GetCurrent();
 	v8::Local<v8::Context> context = isolate->GetCurrentContext();
 	v8::ValueSerializer serializer(isolate);
 	serializer.WriteHeader();
-	
-	
+
 	v8::Local<v8::Value> v8_value = toV8LocalValue(value);
 	if (serializer.WriteValue(context, v8_value).FromMaybe(false)) {
 		auto data = serializer.Release();
@@ -41,7 +40,7 @@ bool SharedUtils::deserialize(ShmemBuffer & buf, napi_value & result)
 {
 	v8::Isolate* isolate = v8::Isolate::GetCurrent();
 	v8::Local<v8::Context> context = isolate->GetCurrentContext();
-	
+
 	v8::ValueDeserializer deserializer(isolate, (const uint8_t*)buf.data(), buf.size());
 	if (deserializer.ReadHeader(context).FromMaybe(false)) {
 
@@ -54,6 +53,14 @@ bool SharedUtils::deserialize(ShmemBuffer & buf, napi_value & result)
 	else
 	{
 		return false;
+	}
+}
+
+void SharedUtils::copy(Buffer & buf, ShmemBuffer & sbuf)
+{
+	for (int i = 0; i < buf.size(); i++)
+	{
+		sbuf.push_back(buf[i]);
 	}
 }
 

@@ -85,7 +85,7 @@ SharedMap::SharedMap(const Napi::CallbackInfo &info)
 	}
 	catch (std::exception& e)
 	{
-		Napi::Error::New(env, e.what() ).ThrowAsJavaScriptException();
+		Napi::Error::New(env, e.what()).ThrowAsJavaScriptException();
 		return;
 	}
 }
@@ -101,7 +101,7 @@ void SharedMap::insert(const Napi::CallbackInfo &info)
 	Napi::HandleScope scope(env);
 
 	size_t length = info.Length();
-	if (length <= 1 || !info[0].IsString())
+	if (length <= 1)
 	{
 		Napi::TypeError::New(env, "Invalid Parameters, map pair (key,value) expected").ThrowAsJavaScriptException();
 		return;
@@ -110,66 +110,73 @@ void SharedMap::insert(const Napi::CallbackInfo &info)
 	scoped_lock<interprocess_mutex> lock(pObj->mutex);
 
 	CharAllocator charAlloc(pSegment->get_segment_manager());
-	std::string key = info[0].As<Napi::String>();
-	ShmemString skey(charAlloc);
-	skey = key.c_str();
-	Buffer buffer;
-	bool b = SharedUtils::serialize(info[1], buffer);
-	if (b)
-	{
-		CharAllocator charAlloc(pSegment->get_segment_manager());
-		ShmemBuffer svalue(charAlloc);
-		for (int i = 0; i < buffer.size(); i++)
-		{
-			svalue.push_back(buffer[i]);
-		}
 
-		pMap->insert(PairType(skey, svalue));
+	Buffer buffer0, buffer1;
+	bool b0 = SharedUtils::serialize(info[0], buffer0);
+	bool b1 = SharedUtils::serialize(info[1], buffer1);
+	if (b0 && b1)
+	{
+		ShmemBuffer sKey(charAlloc);
+		SharedUtils::copy(buffer0, sKey);
+		ShmemBuffer sValue(charAlloc);
+		SharedUtils::copy(buffer1, sValue);
+		pMap->insert(PairType(sKey, sValue));
 		pSegment->flush();
 	}
 	else
 	{
 		Napi::Error::New(env, "Invalid Parameters").ThrowAsJavaScriptException();
 	}
-	
+
 }
 
 Napi::Value SharedMap::at(const Napi::CallbackInfo &info)
 {
 	Napi::Env env = info.Env();
 	Napi::HandleScope scope(env);
-	Napi::Object r = Napi::Object::New(env);
+	// Napi::Object r = Napi::Object::New(env);
+	Napi::Value r;
 	size_t length = info.Length();
-	if (length <= 0 || !info[0].IsString())
+	if (length <= 0)
 	{
 		Napi::TypeError::New(env, "Invalid Parameters, String expected").ThrowAsJavaScriptException();
 		return r;
 	}
 
 	CharAllocator charAlloc(pSegment->get_segment_manager());
-	std::string key = info[0].As<Napi::String>();
-	ShmemString skey(charAlloc);
-	skey = key.c_str();
-
-	ShmemMap::iterator pos = pMap->find(skey);
-	if (pos == pMap->end())
+	napi_value key = info[0];
+	ShmemBuffer sKey(charAlloc);
+	Buffer buffer0;
+	bool b0 = SharedUtils::serialize(key, buffer0);
+	if (b0)
 	{
-		Napi::RangeError::New(env, "Invalid Parameter, Out of Range").ThrowAsJavaScriptException();
-		return r;
-	}
-	ShmemBuffer svalue = pMap->at(skey);
-	napi_value result;
-	bool b = SharedUtils::deserialize(svalue, result);
-	if (b) {
-		r.Set(key, Napi::Value(env, result));
-		return r;
+		ShmemBuffer sKey(charAlloc);
+		SharedUtils::copy(buffer0, sKey);
+
+		ShmemMap::iterator pos = pMap->find(sKey);
+		if (pos == pMap->end())
+		{
+			Napi::RangeError::New(env, "Invalid Parameter, Out of Range").ThrowAsJavaScriptException();
+			return r;
+		}
+		ShmemBuffer sValue = pMap->at(sKey);
+		napi_value value;
+		bool b = SharedUtils::deserialize(sValue, value);
+		if (b) {
+			return Napi::Value(env, value);
+		}
+		else
+		{
+			Napi::Error::New(env, "deserialize").ThrowAsJavaScriptException();
+			return r;
+		}
 	}
 	else
 	{
-		Napi::Error::New(env, "Invalid Parameter, Out of range").ThrowAsJavaScriptException();
+		Napi::Error::New(env, "serialize").ThrowAsJavaScriptException();
 		return r;
 	}
-	
+
 }
 
 void SharedMap::erase(const Napi::CallbackInfo &info)
@@ -185,11 +192,20 @@ void SharedMap::erase(const Napi::CallbackInfo &info)
 
 	scoped_lock<interprocess_mutex> lock(pObj->mutex);
 	CharAllocator charAlloc(pSegment->get_segment_manager());
-	std::string key = info[0].As<Napi::String>();
-	ShmemString skey(charAlloc);
-	skey = key.c_str();
-	pMap->erase(skey);
-	pSegment->flush();
+	ShmemBuffer sKey(charAlloc);
+	Buffer buffer0;
+	bool b0 = SharedUtils::serialize(info[0], buffer0);
+	if (b0)
+	{
+		ShmemBuffer sKey(charAlloc);
+		SharedUtils::copy(buffer0, sKey);
+		pMap->erase(sKey);
+		pSegment->flush();
+	}
+	else
+	{
+		Napi::Error::New(env, "serialize").ThrowAsJavaScriptException();
+	}
 }
 
 Napi::Value SharedMap::empty(const Napi::CallbackInfo &info) {
@@ -211,19 +227,20 @@ Napi::Value SharedMap::getValue(const Napi::CallbackInfo &info) {
 	Napi::HandleScope scope(env);
 	Napi::Object r = Napi::Object::New(env);
 	for (auto &kv : *pMap) {
-		std::string key = kv.first.c_str();
-		ShmemBuffer svalue = kv.second;
-		napi_value result;
-		bool b = SharedUtils::deserialize(svalue, result);
-		if (b) {
-			r.Set(key, result);
+		ShmemBuffer sKey = kv.first;
+		ShmemBuffer sValue = kv.second;
+		napi_value key, value;
+		bool b0 = SharedUtils::deserialize(sKey, key);
+		bool b1 = SharedUtils::deserialize(sValue, value);
+		if (b0 && b1) {
+			r.Set(key, value);
 		}
 		else
 		{
 			Napi::Error::New(env, "Invalid Parameter, Out of range").ThrowAsJavaScriptException();
 			return r;
 		}
-		
+
 	}
 	return r;
 }
