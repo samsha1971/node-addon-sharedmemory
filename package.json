@@ -1,9 +1,9 @@
 {
   "name": "node-addon-sharememory",
-  "version": "0.0.0",
-  "description": "Build N-API native addon with CMake and node-addon-api C++ wrapper.",
+  "version": "0.0.1",
+  "description": "node addon sharememory",
   "main": "index.js",
-  "private": true,
+  "private": false,
   "dependencies": {
     "bindings": "~1.2.1",
     "node-addon-api": "~3.0.0"
