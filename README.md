@@ -32,7 +32,8 @@ node ./test.js
 ### Example
 
 ```javascript
-var SharedMemory = require("bindings")("SharedMemory");
+var SharedMemory = require("node-addon-sharememory");
+// var SharedMemory = require("bindings")("SharedMemory");
 // Set memory size, default size is 64k, minimum size is 1024 bytes.
 // var SharedMemory = require("bindings")("SharedMemory", 1024);
 
