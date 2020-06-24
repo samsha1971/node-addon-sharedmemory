@@ -1,9 +1,14 @@
 {
   "name": "node-addon-sharememory",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "node addon sharememory",
   "main": "index.js",
   "private": false,
+  "author": "Sam Sha <sam_sha@163.com>",
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:samsha1971/node-addon-sharedmemory.git"
+  },
   "dependencies": {
     "bindings": "~1.2.1",
     "node-addon-api": "~3.0.0"
