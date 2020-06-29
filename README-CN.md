@@ -2,23 +2,21 @@
 
 ### 程序说明
 
-利用c++ boost的跨进程共享内存技术，为nodejs提供跨进程的共享内存的插件。
+利用 c++ boost 的跨进程共享内存技术，为 nodejs 提供跨进程的共享内存的插件。
 
 ### 依赖
 
 #### Windows
 
 - Visual Studio 2017
-
 - Boost 1.69.0
 - nodejs 12.18.0
-- node-addon-api  
+- node-addon-api
 - cmake-js
 
 #### Linux
 
 没有测试。
-
 
 ### 使用
 
@@ -74,14 +72,13 @@ if (cluster.isMaster) {
 测试：
 
 ```javascript
-var SharedMemory = require("node-addon-sharememory");
-// var SharedMemory = require("bindings")("SharedMemory");
-// Set memory size, default size is 64k, minimum size is 1024 bytes.
+var SharedMemory = require("bindings")("SharedMemory");
 // var SharedMemory = require("bindings")("SharedMemory", 1024);
 
-var m = new SharedMemory.Map("test.sharememory");
-// Use the same or different name
-// var m = new SharedMemory.Map("test1.sharememory");
+var m = new SharedMemory.Map("test.sharememory", 64 * 1024);
+// Parameter 1, is ShareMemory Name
+// Set memory size, default size is 64k, minimum size is 1024 bytes. If you want to insert more data, you must set bigger memory size.
+// If insert error, you must set bigger memory size.
 m.insert("key0", "value0");
 m.insert("key20", "value20");
 m.clear(); // You can comment out this line
@@ -100,12 +97,13 @@ xx = m.value[{ x: 123 }];
 console.log("Object: " + JSON.stringify(xx));
 
 console.log(m.value);
-// console.log(m.name);
-// console.log(m);
+console.log(m.name);
+console.log(m);
 
-var v = new SharedMemory.Vector("test.sharememory");
-// Use the same or different name
-// var m = new SharedMemory.Vector("test1.sharememory");
+var v = new SharedMemory.Vector("test.sharememory", 1024);
+// Same as Map
+// You can use the same or different name, If the name exists, the memory size is ignored.
+
 v.push_back(1);
 v.push_back({ x: 1, y: { z: 1 } });
 v.clear(); // You can comment out this line
@@ -115,12 +113,11 @@ v.push_back("1");
 v.push_back("2");
 v.push_back("3");
 v.push_back("4");
+
 v.erase(3);
 console.log(v.empty());
 console.log(v.at(0));
 console.log(v.value);
 // console.log(v.name);
 // console.log(v);
-
 ```
-

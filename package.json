@@ -1,10 +1,11 @@
 {
   "name": "node-addon-sharememory",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "node addon sharememory",
   "main": "index.js",
   "private": false,
   "author": "Sam Sha <sam_sha@163.com>",
+  "license": "MIT",
   "keywords": [
     "node",
     "sharememory"
