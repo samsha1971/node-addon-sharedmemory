@@ -1,6 +1,6 @@
 {
   "name": "node-addon-sharememory",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "node addon sharememory",
   "main": "index.js",
   "private": false,

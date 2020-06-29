@@ -120,8 +120,15 @@ void SharedMap::insert(const Napi::CallbackInfo &info)
 		SharedUtils::copy(buffer0, sKey);
 		ShmemBuffer sValue(charAlloc);
 		SharedUtils::copy(buffer1, sValue);
-		pMap->insert(PairType(sKey, sValue));
-		pSegment->flush();
+		try {
+			pMap->insert(PairType(sKey, sValue));
+			pSegment->flush();
+		}
+		catch (std::exception &e)
+		{
+			Napi::Error::New(env, e.what()).ThrowAsJavaScriptException();
+		}
+		
 	}
 	else
 	{

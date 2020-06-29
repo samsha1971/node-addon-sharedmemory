@@ -131,8 +131,14 @@ void SharedVector::push_back(const Napi::CallbackInfo &info)
 		CharAllocator charAlloc(pSegment->get_segment_manager());
 		ShmemBuffer sValue(charAlloc);
 		SharedUtils::copy(buffer, sValue);
-		pVector->push_back(sValue);
-		pSegment->flush();
+		try{
+			pVector->push_back(sValue);
+			pSegment->flush();
+		}
+		catch (std::exception &e)
+		{
+			Napi::Error::New(env, e.what()).ThrowAsJavaScriptException();
+		}
 	}
 	else
 	{
